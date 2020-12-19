@@ -80,9 +80,9 @@ trn_index <-
   createDataPartition(y = police_na_omit$manner_of_death,
                       p = 0.70,
                       list = FALSE)
-trn_death_manner <- police_na_omit[trn_index,]
-tst_death_manner <- police_na_omit[-trn_index,]
-trn_death_manner <- trn_death_manner %>%
+trn_set <- police_na_omit[trn_index,]
+tst_set <- police_na_omit[-trn_index,]
+trn_set <- trn_set %>%
   mutate(body_camera = relevel(factor(body_camera), ref = "False"))
 lgr_death_pred <- train(
   manner_of_death ~ body_camera,
