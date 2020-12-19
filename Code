@@ -1,4 +1,63 @@
+## Goutham Indiran, Madja Kasmi, Manav Mishra, Sabrina de Graaf, Sadjia Safdari
+## 195004 #add u-number
 
-## R-Code here
-rbthn
-fgbnghnn
+## Load packages ---------------------------------------------------------------
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(caret)
+# your own package
+
+## *************************Load data*************************************
+
+# in your submission (as a .zip document), there should be an "input" directory
+# that holds your datafiles as .txt or .csv.
+# Provide relative paths upon submission in your script that allow direct loading
+
+shooting_df <-
+  read.csv("input/fatal-police-shootings-data.csv", stringsAsFactors = FALSE)
+
+
+
+
+#*****************write all functions here******************************
+
+convert_factor <- function(column_name) {
+  column_name <- as.factor(column_name)
+}
+
+
+
+# **************explore and analyse data here ***************************
+
+#Cleaning dataset
+#Special characters (e.g. commas in numeric values)
+#Numeric values stored as text/character data types
+#Duplicate rows
+#Misspellings
+#Inaccuracies
+#White space
+#Missing data
+#Zeros instead of null values
+
+
+cleaned_shooting_df <- shooting_df %>%
+  select(-c(latitude, longitude, is_geocoding_exact)) %>%
+  mutate_at(
+    vars(
+      gender,
+      race,
+      signs_of_mental_illness,
+      flee,
+      threat_level,
+      body_camera,
+      manner_of_death,
+      armed
+    ),
+    list(convert_factor)
+  ) %>%
+  mutate_all(. , list( ~ na_if(., "")))
+
+
+# ***************Plotting******************************************
+
