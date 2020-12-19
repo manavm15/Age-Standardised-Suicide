@@ -1,5 +1,10 @@
-## Goutham Indiran, Madja Kasmi, Manav Mishra, Sabrina de Graaf, Sadjia Safdari
-## 195004 #add u-number
+## Goutham Indiran, u195004
+## Majda Kasmi,
+## Manav Mishra, u558101
+##Sabrina de Graaf,
+##Sadjia Safdari
+
+
 
 ## Load packages ---------------------------------------------------------------
 library(dplyr)
@@ -26,8 +31,6 @@ convert_factor <- function(column_name) {
   column_name <- as.factor(column_name)
 }
 
-
-
 # **************explore and analyse data here ***************************
 
 #Cleaning dataset
@@ -38,9 +41,7 @@ convert_factor <- function(column_name) {
 #Inaccuracies
 #White space
 #Missing data
-#Zeros instead of null values
-
-
+#Null values for empty rows
 cleaned_shooting_df <- shooting_df %>%
   select(-c(latitude, longitude, is_geocoding_exact)) %>%
   mutate_at(
@@ -56,8 +57,38 @@ cleaned_shooting_df <- shooting_df %>%
     ),
     list(convert_factor)
   ) %>%
-  mutate_all(. , list( ~ na_if(., "")))
+  mutate_all(. , list(~ na_if(., "")))
 
+police_na_omit <- cleaned_shooting_df %>%
+  na.omit() 
 
 # ***************Plotting******************************************
 
+## Upon plotting the barplot and analysing it comes to attention that, number of
+## people shot, shot and tasered were as compared to when the body camera was
+## present.
+ggplot(police_na_omit,
+       aes(x = manner_of_death, fill = body_camera)) +
+  geom_bar(position = "dodge")
+
+# ***************Research Questions 2******************************************
+# Do body cameras have an influence on the likelihood of a deadly shooting by
+# police officers?
+# LOGISTIC REGRESSION
+set.seed(1)
+trn_index <-
+  createDataPartition(y = police_na_omit$manner_of_death,
+                      p = 0.70,
+                      list = FALSE)
+trn_death_manner <- police_na_omit[trn_index,]
+tst_death_manner <- police_na_omit[-trn_index,]
+trn_death_manner <- trn_death_manner %>%
+  mutate(body_camera = relevel(factor(body_camera), ref = "False"))
+lgr_death_pred <- train(
+  manner_of_death ~ body_camera,
+  method = "glm",
+  family = binomial(link = "logit"),
+  data = trn_death_manner,
+  trControl = trainControl(method = "cv", number = 5)
+)
+summary(lgr_death_pred)
