@@ -43,21 +43,46 @@ convert_factor <- function(column_name) {
 
 cleaned_shooting_df <- shooting_df %>%
   select(-c(latitude, longitude, is_geocoding_exact)) %>%
-  mutate_at(
-    vars(
-      gender,
-      race,
-      signs_of_mental_illness,
-      flee,
-      threat_level,
-      body_camera,
-      manner_of_death,
-      armed
-    ),
-    list(convert_factor)
-  ) %>%
+  mutate_at(vars(gender, race, signs_of_mental_illness, flee, threat_level, 
+                 body_camera, manner_of_death, armed), list(convert_factor)) %>%
+  mutate(race = recode(race, "A" = "Asian", "B" = "Black", "H" = "Hispanic",
+                       "N" = "Native American", "O" = "Other", "W" = "White"),
+         gender = recode(gender, "F" = "Female", "M" = "Male")) %>%
+  separate(date, into = c("year")) %>%
   mutate_all(. , list( ~ na_if(., "")))
-
+  
 
 # ***************Plotting******************************************
+
+# Research question 1
+
+# 1.1 Death in the US per state; california and texas
+ggplot(cleaned_shooting_df, aes(x = state)) +
+  geom_bar(fill = "blue") + coord_flip()
+
+# 1.2 Deaths per gender, 95% male and 5% female victims
+cleaned_shooting_df %>%
+  drop_na %>%
+  ggplot(aes(x = gender)) +
+  geom_bar() 
+
+# 1.3 Deaths per race; mostly whites
+cleaned_shooting_df %>%
+  drop_na %>%
+  ggplot(aes(x = year, fill = race)) +
+  geom_bar()
+
+# 1.3.1 Deaths per race over the years
+x <- cleaned_shooting_df %>%
+  group_by(year) %>%
+  count(race) %>%
+  drop_na()
+
+ggplot(x, aes(x = year, y = n, group = race)) +
+  geom_line(aes(color = race))
+
+## white people: decrease after 2015, especially after 2018, 2019 stable.
+## black people: decrease after 2015 but a peak in 2019 and after again decrease
+## hispanics: decrease after 2015, peak in 2017, after that decrease
+## Native American, and others steady over the years
 
