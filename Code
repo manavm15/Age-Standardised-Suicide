@@ -61,3 +61,38 @@ cleaned_shooting_df <- shooting_df %>%
 
 # ***************Plotting******************************************
 
+
+
+
+
+# ***************LG Research q1******************************************
+filtered_weapon_df <- weapon_df %>%
+  drop_na() %>%
+  mutate_at(vars(gender, race, signs_of_mental_illness, flee, threat_level, 
+                 body_camera, manner_of_death, weapon), list(convert_factor))
+
+set.seed(1)
+trn_index <- createDataPartition(y = filtered_weapon_df$weapon, p = 0.70, list = FALSE)
+trn_weapon <- weapon_df[trn_index, ]
+tst_weapon <- weapon_df[-trn_index, ]
+
+trn_weapon_relevel <- trn_weapon %>%
+  mutate(weapon = relevel(factor(weapon), ref = "armed")) %>%
+  mutate(gender = relevel(factor(gender), ref = "Male")) %>%
+  mutate(race = relevel(factor(race), ref = "Black")) %>%
+  filter(weapon != "unknown")
+
+trn_weapon_relevel$weapon <- factor(trn_weapon_relevel$weapon)
+
+# levels(trn_weapon_relevel$weapon)
+
+# reference group: armed, male, black
+set.seed(1)
+weapon_lgr <- train(weapon ~ race + gender,
+                    method = "glm",
+                    family = binomial(link = "logit"), 
+                    data = trn_weapon_relevel,
+                    trControl = trainControl(method = "cv", number = 5)
+)
+
+summary(weapon_lgr)
