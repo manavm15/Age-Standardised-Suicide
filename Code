@@ -20,7 +20,11 @@ library(caret)
 # Provide relative paths upon submission in your script that allow direct loading
 
 shooting_df <-
-  read.csv("input/fatal-police-shootings-data.csv", stringsAsFactors = FALSE)
+  read.csv(
+    "input/fatal-police-shootings-data.csv",
+    stringsAsFactors = FALSE,
+    na.strings = c("", "NA")
+  )
 
 
 
@@ -30,7 +34,14 @@ shooting_df <-
 convert_factor <- function(column_name) {
   column_name <- as.factor(column_name)
 }
-
+non_native <- function(race) {
+  if (grepl("White", race) == FALSE) {
+    race[race] <- "Non_white"
+  }
+  else{
+    race[race] <- race
+  }
+}
 # **************explore and analyse data here ***************************
 
 #Cleaning dataset
@@ -44,7 +55,7 @@ convert_factor <- function(column_name) {
 #Null values for empty rows
 cleaned_shooting_df <- shooting_df %>%
   select(-c(latitude, longitude, is_geocoding_exact)) %>%
-  mutate_at(
+  drop_na() %>%  mutate_at(
     vars(
       gender,
       race,
@@ -57,61 +68,82 @@ cleaned_shooting_df <- shooting_df %>%
     ),
     list(convert_factor)
   ) %>%
-  mutate_all(. , list(~ na_if(., "")))
+  mutate(
+    race = recode(
+      race,
+      "A" = "Asian",
+      "B" = "Black",
+      "H" = "Hispanic",
+      "N" = "Native_American",
+      "O" = "Other",
+      "W" = "White"
+    ),
+    gender = recode(gender, "F" = "Female", "M" = "Male")
+  )
 
-police_na_omit <- cleaned_shooting_df %>%
-  na.omit() 
-
+police_na_omit <- cleaned_shooting_df
+police_na_omit$race <-
+  apply(police_na_omit[, "race", drop = F], 1, non_native)
+str(police_na_omit)
 # ***************Plotting******************************************
 
 ## Upon plotting the barplot and analysing it comes to attention that, number of
 ## people shot, shot and tasered were as compared to when the body camera was
 ## present.
 death_manner_plot <- ggplot(death_manner_plt,
-       aes(x = manner_of_death, fill = body_camera)) +
+                            aes(x = manner_of_death, fill = body_camera)) +
   geom_bar(position = "dodge")
 death_manner_plot
-
-threat_level_plot <- ggplot(threat_level_plt,
-       aes(x = threat_level, fill = signs_of_mental_illness)) +
-  geom_bar(position = "dodge")
-threat_level_plot
-
 
 # ***************Research Questions 2******************************************
 # Do body cameras have an influence on the likelihood of a deadly shooting by
 # police officers?
-# LOGISTIC REGRESSION
+
+# ***************Splitting data***********************************************
+
 set.seed(1)
+
 trn_index <-
   createDataPartition(y = police_na_omit$manner_of_death,
                       p = 0.70,
                       list = FALSE)
-trn_set <- police_na_omit[trn_index,]
-tst_set <- police_na_omit[-trn_index,]
-trn_set <- trn_set %>%
-  mutate(body_camera = relevel(factor(body_camera), ref = "False"))
-death_manner_plt <- trn_set %>%
+
+trn_set_death <- police_na_omit[trn_index, ]
+tst_set_death <- police_na_omit[-trn_index, ]
+
+## -----------------Plot graph-------------------------------------
+death_manner_plt <- trn_set_death %>%
   select(manner_of_death, body_camera)
-threat_level_plt <- trn_set %>%
-  select(signs_of_mental_illness, threat_level)
+# *************** Logistic Regression ******************************************
+set.seed(1)
 lgr_death_pred <- train(
+  manner_of_death ~ (body_camera),
+  method = "glm",
+  family = binomial(link = "logit"),
+  data = trn_set_death,
+  trControl = trainControl(
+    method = "cv",
+    number = 5,
+    sampling = c("down", "up"),
+  )
+)
+pred_death_lgr <- predict(lgr_death_pred, tst_set)
+cnf_mtrx_lgr <-
+  confusionMatrix(pred_death_lgr, as.factor(tst_set$manner_of_death))
+cnf_mtrx_lgr
+# *************** K-NN ******************************************
+death_knn <- train(
   manner_of_death ~ body_camera,
-  method = "glm",
-  family = binomial(link = "logit"),
-  data = trn_death_manner,
-  trControl = trainControl(method = "cv", number = 5)
+  method = "knn",
+  data = trn_set_death,
+  trControl = trainControl(
+    method = "cv",
+    number = 10,
+    sampling = c("down", "up")
+  )
 )
-summary(lgr_death_pred)
-
-# Does the mental state of the victim correlate with/have an influence on the 
-# threat level?
-lgr_threat_level <- train( signs_of_mental_illness ~ threat_level,
-  method = "glm",
-  family = binomial(link = "logit"),
-  data = trn_set,
-  trControl = trainControl(method = "cv", number = 5)
-)
-summary(lgr_threat_level)
-
-
+summary(death_knn)
+pred_death_knn <- predict(death_knn, tst_set)
+cnf_mtrx_knn <-
+  confusionMatrix(pred_death_knn, as.factor(tst_set$manner_of_death))
+cnf_mtrx_knn
