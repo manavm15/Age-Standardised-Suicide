@@ -132,6 +132,7 @@ cnf_mtrx_lgr <-
   confusionMatrix(pred_death_lgr, as.factor(tst_set$manner_of_death))
 cnf_mtrx_lgr
 # *************** K-NN ******************************************
+set.seed(1)
 death_knn <- train(
   manner_of_death ~ body_camera,
   method = "knn",
