@@ -34,6 +34,31 @@ shooting_df <-
 convert_factor <- function(column_name) {
   column_name <- as.factor(column_name)
 }
+non_spaces <- function(vec) {
+  newvec <- tolower(vec)
+  if (grepl(" ", newvec) == TRUE) {
+    if (grepl("not", newvec) == TRUE) {
+      newvec1 <- substr(newvec, start = 1, stop = 3)
+      newvec2 <- gsub("(\\w{1})$", "\\1.", newvec1)
+      newvec3 <- substr(newvec, start = 5 , stop = 11)
+      dot_added <- paste0(newvec2, newvec3)
+      vec[vec] <- dot_added
+    }
+    else {
+      newvec1 <- substr(newvec, start = 1, stop = 4)
+      newvec2 <- gsub("(\\w{1})$", "\\1.", newvec1)
+      newvec3 <- substr(vec, start = 6, stop = 8)
+      newvec4 <- gsub("(\\w{1})$", "\\1.", newvec3)
+      newvec5 <- substr(newvec, start = 10 , stop = 16)
+      dot_added <- paste0(newvec2, newvec4, newvec5)
+      vec[vec] <- dot_added
+    }
+  }
+  else{
+    vec[vec] <- tolower(vec)
+  }
+}
+
 # **************explore and analyse data here ***************************
 
 #Cleaning dataset
@@ -66,24 +91,35 @@ cleaned_shooting_df <- shooting_df %>%
       "A" = "Asian",
       "B" = "Black",
       "H" = "Hispanic",
-      "N" = "Native_American",
+      "N" = "Native.American",
       "O" = "Other",
       "W" = "White"
     ),
     gender = recode(gender, "F" = "Female", "M" = "Male")
   )
 
-police_na_omit <- cleaned_shooting_df
-
+police_na_omit <- cleaned_shooting_df %>%
+  select(-c("id", "name", "city", "state", "date")) %>% group_by(manner_of_death) %>%
+  mutate(c = n())
+police_na_omit$manner_of_death <-
+  apply(police_na_omit[, "manner_of_death",
+                       drop = F], 1, non_spaces)
+police_na_omit$flee <- apply(police_na_omit[, "flee",
+                                            drop = F], 1, non_spaces)
+police_na_omit$manner_of_death <-
+  factor(police_na_omit$manner_of_death)
+police_na_omit$flee <- factor(police_na_omit$flee)
 str(police_na_omit)
+
 # ***************Plotting******************************************
 
 ## Upon plotting the barplot and analysing it comes to attention that, number of
 ## people shot, shot and tasered were as compared to when the body camera was
 ## present.
-death_manner_plot <- ggplot(death_manner_plt,
+death_manner_plot <- ggplot(police_na_omit,
                             aes(x = manner_of_death, fill = body_camera)) +
-  geom_bar(position = "dodge")
+  geom_bar(position = "dodge") +
+  facet_grid( ~ race)
 death_manner_plot
 
 # ***************Research Questions 2******************************************
@@ -105,37 +141,25 @@ tst_set_death <- police_na_omit[-trn_index, ]
 ## -----------------Plot graph-------------------------------------
 death_manner_plt <- trn_set_death %>%
   select(manner_of_death, body_camera)
-# *************** Logistic Regression ******************************************
-set.seed(1)
-lgr_death_pred <- train(
-  manner_of_death ~ (body_camera),
-  method = "glm",
-  family = binomial(link = "logit"),
-  data = trn_set_death,
-  trControl = trainControl(
-    method = "cv",
-    number = 5,
-    sampling = c("down", "up"),
-  )
-)
-pred_death_lgr <- predict(lgr_death_pred, tst_set)
-cnf_mtrx_lgr <-
-  confusionMatrix(pred_death_lgr, as.factor(tst_set$manner_of_death))
-cnf_mtrx_lgr
-# *************** K-NN ******************************************
+## *************** K-NN ******************************************
 set.seed(1)
 death_knn <- train(
   manner_of_death ~ body_camera,
   method = "knn",
   data = trn_set_death,
   trControl = trainControl(
-    method = "cv",
-    number = 10,
-    sampling = c("down", "up")
+    method = "repeatedcv",
+    number = 5,
+    repeats = 3,
+    sampling = c("down", "up"),
+    returnResamp = "all",
+    classProbs = TRUE
   )
 )
+make.names(trn_set_death$body_camera)
 summary(death_knn)
-pred_death_knn <- predict(death_knn, tst_set)
+
+pred_death_knn <- predict(death_knn, tst_set_death)
 cnf_mtrx_knn <-
-  confusionMatrix(pred_death_knn, as.factor(tst_set$manner_of_death))
+  confusionMatrix(pred_death_knn, as.factor(tst_set_death$manner_of_death))
 cnf_mtrx_knn
