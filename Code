@@ -1,7 +1,7 @@
 ## Goutham Indiran, u195004
-## Majda Kasmi,
+## Majda Kasmi, u407044
 ## Manav Mishra, u558101
-##Sabrina de Graaf,
+##Sabrina de Graaf, u379304
 ##Sadjia Safdari
 
 
@@ -11,6 +11,8 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(caret)
+#install usmap first
+library(usmap)
 # your own package
 
 ## *************************Load data*************************************
@@ -19,14 +21,11 @@ library(caret)
 # that holds your datafiles as .txt or .csv.
 # Provide relative paths upon submission in your script that allow direct loading
 
-shooting_df <-
-  read.csv(
-    "input/fatal-police-shootings-data.csv",
-    stringsAsFactors = FALSE,
-    na.strings = c("", "NA")
-  )
-
-
+shooting_df <- read.csv(
+  "input/fatal-police-shootings-data.csv",
+  stringsAsFactors = FALSE,
+  na.strings = c("", "NA")
+)
 
 
 #*****************write all functions here******************************
@@ -34,57 +33,17 @@ shooting_df <-
 convert_factor <- function(column_name) {
   column_name <- as.factor(column_name)
 }
-non_spaces <- function(vec) {
-  newvec <- tolower(vec)
-  if (grepl(" ", newvec) == TRUE) {
-    if (grepl("not", newvec) == TRUE) {
-      newvec1 <- substr(newvec, start = 1, stop = 3)
-      newvec2 <- gsub("(\\w{1})$", "\\1.", newvec1)
-      newvec3 <- substr(newvec, start = 5 , stop = 11)
-      dot_added <- paste0(newvec2, newvec3)
-      vec[vec] <- dot_added
-    }
-    else {
-      newvec1 <- substr(newvec, start = 1, stop = 4)
-      newvec2 <- gsub("(\\w{1})$", "\\1.", newvec1)
-      newvec3 <- substr(vec, start = 6, stop = 8)
-      newvec4 <- gsub("(\\w{1})$", "\\1.", newvec3)
-      newvec5 <- substr(newvec, start = 10 , stop = 16)
-      dot_added <- paste0(newvec2, newvec4, newvec5)
-      vec[vec] <- dot_added
-    }
-  }
-  else{
-    vec[vec] <- tolower(vec)
-  }
-}
 
 # **************explore and analyse data here ***************************
 
 #Cleaning dataset
-#Special characters (e.g. commas in numeric values)
-#Numeric values stored as text/character data types
-#Duplicate rows
-#Misspellings
-#Inaccuracies
-#White space
-#Missing data
-#Null values for empty rows
 cleaned_shooting_df <- shooting_df %>%
   select(-c(latitude, longitude, is_geocoding_exact)) %>%
-  drop_na() %>%  mutate_at(
-    vars(
-      gender,
-      race,
-      signs_of_mental_illness,
-      flee,
-      threat_level,
-      body_camera,
-      manner_of_death,
-      armed
-    ),
-    list(convert_factor)
-  ) %>%
+  mutate_all(. , list(~ na_if(., ""))) %>%
+  mutate(year = substr(date, start = 1, stop = 4)) %>%
+  mutate(month = substr(date, start = 6, stop = 7)) %>%
+  mutate(across(where(is.character), str_trim)) %>%
+  mutate_at(vars(-c(name, city, state, race)), list(tolower)) %>%
   mutate(
     race = recode(
       race,
@@ -95,71 +54,168 @@ cleaned_shooting_df <- shooting_df %>%
       "O" = "Other",
       "W" = "White"
     ),
-    gender = recode(gender, "F" = "Female", "M" = "Male")
+    gender = recode(gender, "F" = "Female", "M" = "Male"),
+    manner_of_death = gsub('\\s+', '.', manner_of_death),
+    flee = gsub('\\s+', '.', flee),
+    month = recode(
+      month,
+      "01" = "January",
+      "02" = "February",
+      "03" = "March",
+      "04" = "April",
+      "05" = "May",
+      "06" = "June",
+      "07" = "July",
+      "08" = "August",
+      "09" = "September",
+      "10" = "October",
+      "11" = "November",
+      "12" = "December"
+    ),
+  ) %>%
+  mutate_at(
+    vars(
+      gender,
+      race,
+      signs_of_mental_illness,
+      flee,
+      threat_level,
+      body_camera,
+      manner_of_death,
+      armed,
+      year,
+      month
+    ),
+    list(convert_factor)
   )
 
-police_na_omit <- cleaned_shooting_df %>%
-  select(-c("id", "name", "city", "state", "date")) %>% group_by(manner_of_death) %>%
-  mutate(c = n())
-police_na_omit$manner_of_death <-
-  apply(police_na_omit[, "manner_of_death",
-                       drop = F], 1, non_spaces)
-police_na_omit$flee <- apply(police_na_omit[, "flee",
-                                            drop = F], 1, non_spaces)
-police_na_omit$manner_of_death <-
-  factor(police_na_omit$manner_of_death)
-police_na_omit$flee <- factor(police_na_omit$flee)
-str(police_na_omit)
+#Research Questions 2
+# (i)What is the effect of the presence of body cameras on the manner of death?
 
-# ***************Plotting******************************************
+#Plot code for research question 2 starts
 
 ## Upon plotting the barplot and analysing it comes to attention that, number of
 ## people shot, shot and tasered were as compared to when the body camera was
-## present.
-death_manner_plot <- ggplot(police_na_omit,
-                            aes(x = manner_of_death, fill = body_camera)) +
+## on/off.
+
+death_manner_data <- cleaned_shooting_df %>%
+  select(-c("id", "name", "city", "state", "date")) %>%
+  group_by(manner_of_death) %>%
+  na.omit()
+
+death_manner_plot <- ggplot(death_manner_data,
+                            aes(x = body_camera, fill = body_camera)) +
   geom_bar(position = "dodge") +
-  facet_grid( ~ race)
+  facet_grid( ~ manner_of_death) +
+  theme(plot.title = element_text(size = (11),
+                                  hjust = 0.5)) +
+  ggtitle("Manner of Death vs Body Camera") +
+  guides(fill=guide_legend(title="Body Camera"))
+
 death_manner_plot
 
-# ***************Research Questions 2******************************************
-# Do body cameras have an influence on the likelihood of a deadly shooting by
-# police officers?
 
-# ***************Splitting data***********************************************
+# Research Question 2
+# (ii) Does the death count by camera use differ per state?
 
+state_no_cam_shot <- cleaned_shooting_df %>%
+  select(manner_of_death, body_camera, state, race) %>%
+  filter(body_camera == "false") %>%
+  group_by(state) %>%
+  na.omit() %>%
+  summarise(No.of.Encounters.Without.Camera = n())
+
+state_with_cam_shot <- cleaned_shooting_df %>%
+  select(manner_of_death, body_camera, state, race) %>%
+  filter(body_camera == "true") %>%
+  group_by(state) %>%
+  na.omit() %>%
+  summarise(No.of.Encounters.With.Camera = n())
+
+#install usmap package to get the map plot of US
+#install.packages("usmap")
+
+#using package usmap for visualizing data in the US map
+
+#plot for shooting with body camera off
+state_no_cam_plot_data <- plot_usmap(
+  data = state_no_cam_shot,
+  values = "No.of.Encounters.Without.Camera",
+  color = "red" ,
+  labels = TRUE
+) +
+  scale_fill_continuous(low = "light yellow",
+                        high = "red",
+                        name = "Death count") +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(
+      size = (15),
+      hjust = 0.5
+    ),
+    legend.title = element_text(size = (12))
+  ) +
+  ggtitle("Death Density when Body Camera is OFF")
+
+state_no_cam_plot_data
+
+
+#plot for shooting with body camera on
+state_with_cam_plot_data <- plot_usmap(
+  data = state_with_cam_shot,
+  values = "No.of.Encounters.With.Camera",
+  color = "red" ,
+  labels = TRUE
+) +
+  scale_fill_continuous(low = "light yellow",
+                        high = "brown",
+                        name = "Death count") +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(
+      size = (15),
+      hjust = 0.5
+    ),
+    legend.title = element_text(size = (12))
+  ) +
+  ggtitle("Death Density when Body Camera is ON")
+
+state_with_cam_plot_data
+
+#Plotting for research question 2 ends
+
+#Code for building model for research question 2 starts
+
+# KNN Model
 set.seed(1)
 
 trn_index <-
-  createDataPartition(y = police_na_omit$manner_of_death,
+  createDataPartition(y = death_manner_data$manner_of_death,
                       p = 0.70,
                       list = FALSE)
 
-trn_set_death <- police_na_omit[trn_index, ]
-tst_set_death <- police_na_omit[-trn_index, ]
-
-## -----------------Plot graph-------------------------------------
-death_manner_plt <- trn_set_death %>%
-  select(manner_of_death, body_camera)
-## *************** K-NN ******************************************
+train_set <- death_manner_data[trn_index, ]
+test_set <- death_manner_data[-trn_index, ]
 set.seed(1)
-death_knn <- train(
+
+death_manner_knn_model <- train(
   manner_of_death ~ body_camera,
   method = "knn",
-  data = trn_set_death,
+  data = train_set,
   trControl = trainControl(
-    method = "repeatedcv",
+    method = "cv",
     number = 5,
-    repeats = 3,
     sampling = c("down", "up"),
     returnResamp = "all",
     classProbs = TRUE
   )
 )
-make.names(trn_set_death$body_camera)
-summary(death_knn)
 
-pred_death_knn <- predict(death_knn, tst_set_death)
+death_manner_knn_model
+
+pred_death_manner_knn <- predict(death_manner_knn_model, test_set)
 cnf_mtrx_knn <-
-  confusionMatrix(pred_death_knn, as.factor(tst_set_death$manner_of_death))
+  confusionMatrix(pred_death_manner_knn, as.factor(test_set$manner_of_death))
 cnf_mtrx_knn
+
+# Code for research question 2 ends
