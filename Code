@@ -34,14 +34,6 @@ shooting_df <-
 convert_factor <- function(column_name) {
   column_name <- as.factor(column_name)
 }
-non_native <- function(race) {
-  if (grepl("White", race) == FALSE) {
-    race[race] <- "Non_white"
-  }
-  else{
-    race[race] <- race
-  }
-}
 # **************explore and analyse data here ***************************
 
 #Cleaning dataset
@@ -82,8 +74,7 @@ cleaned_shooting_df <- shooting_df %>%
   )
 
 police_na_omit <- cleaned_shooting_df
-police_na_omit$race <-
-  apply(police_na_omit[, "race", drop = F], 1, non_native)
+
 str(police_na_omit)
 # ***************Plotting******************************************
 
