@@ -127,6 +127,7 @@ ggplot(death_per_race, aes(x = year, y = n, group = race)) +
 # 1.4 Number of people being shot without being armed
 
 perc_shootings_armed <- cleaned_shooting_df %>%
+na.omit() %>%
   mutate(weapon = ifelse(
     armed == "unarmed",
     "unarmed",
@@ -139,8 +140,7 @@ perc_shootings_armed <- cleaned_shooting_df %>%
   )) %>%
   group_by(manner_of_death) %>%
   count(weapon) %>%
-  mutate(perc = n / sum(n)) %>%
-  na.omit()
+  mutate(perc = n / sum(n))
 
 perc_shootings_armed
 
@@ -221,7 +221,7 @@ weapon_lgr <- train(
     repeats = 3,
     summaryFunction = prSummary,
     classProbs = T,
-    sampling = c("down", "up")
+    sampling = "down",
   ),
   metric = "AUC"
 )
@@ -362,7 +362,7 @@ death_manner_knn_model <- train(
     method = "repeatedcv",
     number = 5,
     repeats = 3,
-    sampling = c("down", "up"),
+    sampling = "down",
     returnResamp = "all",
     classProbs = TRUE
   )
