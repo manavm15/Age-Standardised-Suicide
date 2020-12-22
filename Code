@@ -111,12 +111,12 @@ cleaned_shooting_df %>%
   geom_bar()
 
 # 1.3.1 Deaths per race over the years
-x <- cleaned_shooting_df %>%
+death_per_race <- cleaned_shooting_df %>%
   group_by(year) %>%
   count(race) %>%
   drop_na()
 
-ggplot(x, aes(x = year, y = n, group = race)) +
+ggplot(death_per_race, aes(x = year, y = n, group = race)) +
   geom_line(aes(color = race))
 
 ## white people: decrease after 2015, especially after 2018, 2019 stable.
@@ -223,7 +223,7 @@ weapon_lgr <- train(
     classProbs = T,
     sampling = c("down", "up")
   ),
-  metric = "Accuracy"
+  metric = "AUC"
 )
 
 summary(weapon_lgr)
@@ -248,8 +248,8 @@ cnf_mtrx_lgr
 #Plot code for research question 2 starts
 
 ## Upon plotting the barplot and analysing it comes to attention that, number of
-## people shot, shot and tasered (or Number of death) were low  when the body 
-## camera was On, as compared to when the body camera was Off
+## people shot, shot and tasered (or Number of death) were low  when the body
+## camera was present, as compared to when the body camera was not present
 
 death_manner_data <- cleaned_shooting_df %>%
   select(-c("id", "name", "city", "state", "date")) %>%
@@ -290,7 +290,7 @@ state_with_cam_shot <- cleaned_shooting_df %>%
 
 #using package usmap for visualizing data in the US map
 
-#plot for shooting with body camera off
+#plot for shooting with body camera not present
 state_no_cam_plot_data <- plot_usmap(
   data = state_no_cam_shot,
   values = "No.of.Encounters.Without.Camera",
@@ -306,12 +306,12 @@ state_no_cam_plot_data <- plot_usmap(
                               hjust = 0.5),
     legend.title = element_text(size = (12))
   ) +
-  ggtitle("Death Density when Body Camera is OFF")
+  ggtitle("Death Density when Body Camera is not present")
 
 state_no_cam_plot_data
 
 
-#plot for shooting with body camera on
+#plot for shooting with body camera present
 state_with_cam_plot_data <- plot_usmap(
   data = state_with_cam_shot,
   values = "No.of.Encounters.With.Camera",
@@ -327,7 +327,7 @@ state_with_cam_plot_data <- plot_usmap(
                               hjust = 0.5),
     legend.title = element_text(size = (12))
   ) +
-  ggtitle("Death Density when Body Camera is ON")
+  ggtitle("Death Density when Body Camera is present")
 
 state_with_cam_plot_data
 
