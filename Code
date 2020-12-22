@@ -1,8 +1,8 @@
 ## Goutham Indiran, u195004
 ## Majda Kasmi, u407044
 ## Manav Mishra, u558101
-##Sabrina de Graaf, u379304
-##Sadjia Safdari
+## Sabrina de Graaf, u379304
+## Sadjia Safdari, u265740
 
 
 
@@ -88,6 +88,122 @@ cleaned_shooting_df <- shooting_df %>%
     ),
     list(convert_factor)
   )
+
+# *********************************************************
+
+# Research question 1
+
+# 1.1 Death in the US per state; california and texas
+ggplot(cleaned_shooting_df, aes(x = state)) +
+  geom_bar(fill = "blue") + coord_flip()
+
+# 1.2 Deaths per gender, 95% male and 5% female victims
+shooting_per_gender <- cleaned_shooting_df %>%
+  drop_na %>%
+  ggplot(aes(x = gender)) +
+  geom_bar() 
+
+shooting_per_gender
+
+# 1.3 Deaths per race; mostly whites
+cleaned_shooting_df %>%
+  drop_na %>%
+  ggplot(aes(x = year, fill = race)) +
+  geom_bar()
+
+# 1.3.1 Deaths per race over the years
+x <- cleaned_shooting_df %>%
+  group_by(year) %>%
+  count(race) %>%
+  drop_na()
+
+ggplot(x, aes(x = year, y = n, group = race)) +
+  geom_line(aes(color = race))
+
+## white people: decrease after 2015, especially after 2018, 2019 stable.
+## black people: decrease after 2015 but a peak in 2019 and after again decrease
+## hispanics: decrease after 2015, peak in 2017, after that decrease
+## Native American, and others steady over the years
+
+# 1.4 Number of people being shot without being armed
+
+perc_shootings_armed <- cleaned_shooting_df %>%
+  mutate(weapon = ifelse(armed == "unarmed", "unarmed", 
+                         ifelse(armed == "undetermined", "unknown", 
+                                ifelse(armed == "unknwon weapon", "unknown", 
+                                       "armed")))) %>%
+  group_by(manner_of_death) %>%
+  count(weapon) %>%
+  mutate(perc = n / sum(n))
+
+perc_shootings_armed
+
+perc_shootings_armed %>%
+  drop_na() %>%
+  ggplot(aes(x = manner_of_death, y = perc, fill = weapon, 
+             label = scales::percent(perc))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(position = position_dodge(width = .9),    # move to center of bars
+            vjust = -0.5,    # nudge above top of bar
+            size = 3) + 
+  scale_y_continuous(labels = scales::percent)
+
+## majority of the people being shot, or shot and tasered were armed (87.3% and 81.6%)
+
+# *********************************************************
+
+# Logistic Regression Research q1
+
+weapon_df <- cleaned_shooting_df %>%
+  drop_na() %>%
+  mutate(weapon = ifelse(armed == "unarmed", "unarmed", 
+                         ifelse(armed == "undetermined", "unknown", 
+                                ifelse(armed == "unknwon weapon", "unknown", 
+                                       "armed")))) %>%
+  mutate_at(vars(gender, race, signs_of_mental_illness, flee, threat_level, 
+                 body_camera, manner_of_death, weapon), list(convert_factor))
+
+set.seed(1)
+trn_index <- createDataPartition(y = weapon_df$weapon, p = 0.70, list = FALSE)
+trn_weapon <- weapon_df[trn_index, ]
+tst_weapon <- weapon_df[-trn_index, ]
+
+trn_weapon_relevel <- trn_weapon %>%
+  mutate(weapon = relevel(factor(weapon), ref = "armed")) %>%
+  mutate(gender = relevel(factor(gender), ref = "Male")) %>%
+  mutate(race = relevel(factor(race), ref = "Black")) %>%
+  filter(weapon != "unknown")
+
+trn_weapon_relevel$weapon <- factor(trn_weapon_relevel$weapon)
+
+# levels(trn_weapon_relevel$weapon)
+
+# reference group: armed, male, black
+set.seed(1)
+weapon_lgr <- train(weapon ~ race + gender,
+                    method = "glm",
+                    family = binomial(link = "logit"), 
+                    data = trn_weapon_relevel,
+                    trControl = trainControl(method = "cv", number = 5)
+)
+
+summary(weapon_lgr) # 
+
+# being armed, black and a male: -2.1765
+# being a asian male makes you less likely to be armed -0.3487
+# being a hispanic male makes you less likely to be armed -0.2352
+# being a female makes you more likely to be armed than being a male 0.4369???
+# last one is not proportionate since we have 4506 males in dataset and 232 females
+
+filtered_weapon_df %>%
+  count(gender)
+
+filtered_weapon_df %>%
+  group_by(gender) %>%
+  count(weapon)
+
+
+# *********************************************************
 
 #Research Questions 2
 # (i)What is the effect of the presence of body cameras on the manner of death?
