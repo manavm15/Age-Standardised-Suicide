@@ -72,9 +72,6 @@ cleaned_shooting_df <- shooting_df %>%
       "12" = "December"
     ),
   ) %>%
-  apply(. , 2, function(x)
-    gsub('\\s+', '', x)) %>%
-  as.data.frame() %>%
   mutate_at(
     vars(
       gender,
