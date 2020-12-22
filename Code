@@ -33,6 +33,30 @@ shooting_df <- read.csv(
 convert_factor <- function(column_name) {
   column_name <- as.factor(column_name)
 }
+non_spaces <- function(vec) {
+  newvec <- tolower(vec)
+  if (grepl(" ", newvec) == TRUE) {
+    if (grepl("not", newvec) == TRUE) {
+      newvec1 <- substr(newvec, start = 1, stop = 3)
+      newvec2 <- gsub("(\\w{1})$", "\\1.", newvec1)
+      newvec3 <- substr(newvec, start = 5 , stop = 11)
+      dot_added <- paste0(newvec2, newvec3)
+      vec[vec] <- dot_added
+    }
+    else {
+      newvec1 <- substr(newvec, start = 1, stop = 4)
+      newvec2 <- gsub("(\\w{1})$", "\\1.", newvec1)
+      newvec3 <- substr(vec, start = 6, stop = 8)
+      newvec4 <- gsub("(\\w{1})$", "\\1.", newvec3)
+      newvec5 <- substr(newvec, start = 10 , stop = 16)
+      dot_added <- paste0(newvec2, newvec4, newvec5)
+      vec[vec] <- dot_added
+    }
+  }
+  else{
+    vec[vec] <- tolower(vec)
+  }
+}
 
 # **************explore and analyse data here ***************************
 
@@ -40,10 +64,6 @@ convert_factor <- function(column_name) {
 cleaned_shooting_df <- shooting_df %>%
   select(-c(latitude, longitude, is_geocoding_exact)) %>%
   mutate_all(. , list(~ na_if(., ""))) %>%
-  mutate(year = substr(date, start = 1, stop = 4)) %>%
-  mutate(month = substr(date, start = 6, stop = 7)) %>%
-  mutate(across(where(is.character), str_trim)) %>%
-  mutate_at(vars(-c(name, city, state, race)), list(tolower)) %>%
   mutate(
     race = recode(
       race,
@@ -88,6 +108,13 @@ cleaned_shooting_df <- shooting_df %>%
     ),
     list(convert_factor)
   )
+police_na_omit$manner_of_death <- apply(police_na_omit[, "manner_of_death",
+                                                       drop = F], 1, non_spaces)
+police_na_omit$flee <- apply(police_na_omit[, "flee",
+                                            drop = F], 1, non_spaces)
+                                            
+police_na_omit$manner_of_death <-factor(police_na_omit$manner_of_death)
+police_na_omit$flee <- factor(police_na_omit$flee)
 
 #Research Questions 2
 # (i)What is the effect of the presence of body cameras on the manner of death?
