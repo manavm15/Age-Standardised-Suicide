@@ -33,6 +33,7 @@ shooting_df <- read.csv(
 convert_factor <- function(column_name) {
   column_name <- as.factor(column_name)
 }
+
 # **************explore and analyse data here ***************************
 
 #Cleaning dataset
@@ -135,7 +136,8 @@ perc_shootings_armed <- cleaned_shooting_df %>%
                                        "armed")))) %>%
   group_by(manner_of_death) %>%
   count(weapon) %>%
-  mutate(perc = n / sum(n))
+  mutate(perc = n / sum(n)) %>%
+  na.omit()
 
 perc_shootings_armed
 
@@ -190,19 +192,17 @@ weapon_lgr <- train(weapon ~ race + gender,
 
 summary(weapon_lgr) # 
 
+pred_weapon_lgr <- predict(weapon_lgr, tst_weapon)
+levels(trn_weapon$weapon)
+str(tst_weapon)
+cnf_mtrx_lgr <-
+  confusionMatrix(pred_weapon_lgr, as.factor(tst_weapon$weapon))
+cnf_mtrx_lgr
 # being armed, black and a male: -2.1765
 # being a asian male makes you less likely to be armed -0.3487
 # being a hispanic male makes you less likely to be armed -0.2352
 # being a female makes you more likely to be armed than being a male 0.4369???
 # last one is not proportionate since we have 4506 males in dataset and 232 females
-
-filtered_weapon_df %>%
-  count(gender)
-
-filtered_weapon_df %>%
-  group_by(gender) %>%
-  count(weapon)
-
 
 # *********************************************************
 
@@ -306,13 +306,19 @@ state_with_cam_plot_data
 # KNN Model
 set.seed(1)
 
+knn_data <- cleaned_shooting_df %>%
+  na.omit() %>%
+  select(-c("id", "name", "city", "state", "date", "month", "year")) %>%
+  group_by(manner_of_death)
+
 trn_index <-
-  createDataPartition(y = death_manner_data$manner_of_death,
+  createDataPartition(y = knn_data$manner_of_death,
                       p = 0.70,
                       list = FALSE)
 
-train_set <- death_manner_data[trn_index, ]
-test_set <- death_manner_data[-trn_index, ]
+train_set <- knn_data[trn_index, ]
+test_set <- knn_data[-trn_index, ]
+
 set.seed(1)
 
 death_manner_knn_model <- train(
@@ -320,8 +326,9 @@ death_manner_knn_model <- train(
   method = "knn",
   data = train_set,
   trControl = trainControl(
-    method = "cv",
+    method = "repeatedcv",
     number = 5,
+    repeats = 3,
     sampling = c("down", "up"),
     returnResamp = "all",
     classProbs = TRUE
