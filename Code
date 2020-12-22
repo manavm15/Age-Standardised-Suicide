@@ -39,7 +39,7 @@ convert_factor <- function(column_name) {
 #Cleaning dataset
 cleaned_shooting_df <- shooting_df %>%
   select(-c(latitude, longitude, is_geocoding_exact)) %>%
-  mutate_all(. , list(~ na_if(., ""))) %>%
+  mutate_all(. , list( ~ na_if(., ""))) %>%
   mutate(year = substr(date, start = 1, stop = 4)) %>%
   mutate(month = substr(date, start = 6, stop = 7)) %>%
   mutate_at(vars(-c(name, city, state, race)), list(tolower)) %>%
@@ -127,7 +127,7 @@ ggplot(death_per_race, aes(x = year, y = n, group = race)) +
 # 1.4 Number of people being shot without being armed
 
 perc_shootings_armed <- cleaned_shooting_df %>%
-na.omit() %>%
+  na.omit() %>%
   mutate(weapon = ifelse(
     armed == "unarmed",
     "unarmed",
@@ -160,7 +160,7 @@ perc_shootings_armed %>%
             size = 3) +
   scale_y_continuous(labels = scales::percent)
 
-## majority of the people being shot, or shot and tasered were armed (87.3% and 81.6%)
+## majority of the people being shot, or shot and tasered were armed (89.3% and 81.7%)
 
 # *********************************************************
 
@@ -178,12 +178,7 @@ weapon_df <- cleaned_shooting_df %>%
              "armed")
     )
   )) %>%
-  mutate_at(
-    vars(
-      weapon
-    ),
-    list(convert_factor)
-  )
+  mutate_at(vars(weapon), list(convert_factor))
 
 set.seed(1)
 
@@ -195,8 +190,8 @@ trn_weapon_relevel <- weapon_df %>%
 
 trn_index <-
   createDataPartition(y = trn_weapon_relevel$weapon, p = 0.70, list = FALSE)
-trn_weapon <- trn_weapon_relevel[trn_index,]
-tst_weapon <- trn_weapon_relevel[-trn_index,]
+trn_weapon <- trn_weapon_relevel[trn_index, ]
+tst_weapon <- trn_weapon_relevel[-trn_index, ]
 
 
 # levels(trn_weapon_relevel$weapon)
@@ -207,13 +202,13 @@ weapon_lgr <- train(
   weapon ~ race + gender,
   method = "glm",
   family = binomial(link = "logit"),
-  data = trn_weapon_relevel,
+  data = trn_weapon,
   trControl = trainControl(
     method = "repeatedcv",
     number = 5,
     repeats = 3,
     summaryFunction = prSummary,
-    classProbs = T,
+    classProbs = TRUE,
     sampling = "down",
   ),
   metric = "AUC"
@@ -252,10 +247,10 @@ death_manner_data <- cleaned_shooting_df %>%
 death_manner_plot <- ggplot(death_manner_data,
                             aes(x = body_camera, fill = body_camera)) +
   geom_bar(position = "dodge") +
-  facet_grid(~ manner_of_death) +
+  facet_grid( ~ manner_of_death) +
   theme(plot.title = element_text(size = (11),
                                   hjust = 0.5)) +
-  ggtitle("manner_of_death vs Body Camera") +
+  ggtitle("Manner of death vs Body Camera") +
   guides(fill = guide_legend(title = "Body Camera"))
 
 death_manner_plot
@@ -342,8 +337,8 @@ trn_index <-
                       p = 0.70,
                       list = FALSE)
 
-train_set <- knn_data[trn_index,]
-test_set <- knn_data[-trn_index,]
+train_set <- knn_data[trn_index, ]
+test_set <- knn_data[-trn_index, ]
 
 set.seed(1)
 
@@ -369,3 +364,59 @@ cnf_mtrx_knn <-
 cnf_mtrx_knn
 
 # Code for research question 2 ends
+
+
+#Random forest
+
+#Bodycamera vs Armed
+random_forest_data <- cleaned_shooting_df %>%
+  select(body_camera, armed) %>%
+  mutate(armed = ifelse(
+    armed == "unarmed",
+    "unarmed",
+    ifelse(
+      armed == "undetermined",
+      "unknown",
+      ifelse(armed == "unknown weapon", "unknown",
+             "armed")
+    )
+  )) %>%
+  na.omit()
+
+set.seed(1)
+trn_index <-
+  createDataPartition(y = random_forest_data$body_camera,
+                      p = 0.70,
+                      list = FALSE)
+
+train_set_rf <- random_forest_data[trn_index, ]
+test_set_rf <- random_forest_data[-trn_index, ]
+
+table(train_set_rf$body_camera)
+nmin <- sum(train_set_rf$body_camera == "true")
+nmin
+set.seed(1)
+
+ctrl <- trainControl(
+  method = "cv",
+  classProbs = TRUE,
+  summaryFunction = twoClassSummary,
+  sampling = "smote"
+)
+
+death_manner_rf_model <- train(
+  body_camera ~ .,
+  data = train_set_rf,
+  method = "rf",
+  ntree = 1500,
+  metric = "ROC",
+  strata = train_set_rf$body_camera,
+  tuneLength = 5,
+  trControl = ctrl,
+  sampsize = rep(nmin, 2)
+)
+death_manner_rf_model
+pred_cam_rf <- predict(death_manner_rf_model, test_set_rf)
+cnf_mtrx_rf <-
+  confusionMatrix(pred_cam_rf, as.factor(test_set_rf$body_camera))
+cnf_mtrx_rf
