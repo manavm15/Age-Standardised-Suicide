@@ -180,13 +180,6 @@ weapon_df <- cleaned_shooting_df %>%
   )) %>%
   mutate_at(
     vars(
-      gender,
-      race,
-      signs_of_mental_illness,
-      flee,
-      threat_level,
-      body_camera,
-      manner_of_death,
       weapon
     ),
     list(convert_factor)
