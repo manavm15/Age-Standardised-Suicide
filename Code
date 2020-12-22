@@ -174,7 +174,7 @@ weapon_df <- cleaned_shooting_df %>%
     ifelse(
       armed == "undetermined",
       "unknown",
-      ifelse(armed == "unknown weapon", "unknown",
+      ifelse(armed == "unknownn weapon", "unknown",
              "armed")
     )
   )) %>%
@@ -376,4 +376,3 @@ cnf_mtrx_knn <-
 cnf_mtrx_knn
 
 # Code for research question 2 ends
-
