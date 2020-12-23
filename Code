@@ -1,4 +1,3 @@
-
 # ******************************************************************************
 
 # GROUP PROJECT OF PROGRAMMING WITH R
@@ -46,7 +45,7 @@ convert_factor <- function(column_name) {
 
 cleaned_shooting_df <- shooting_df %>%
   select(-c(latitude, longitude, is_geocoding_exact)) %>%
-  mutate_all(. , list( ~ na_if(., ""))) %>%
+  mutate_all(. , list(~ na_if(., ""))) %>%
   mutate(year = substr(date, start = 1, stop = 4)) %>%
   mutate(month = substr(date, start = 6, stop = 7)) %>%
   mutate_at(vars(-c(name, city, state, race)), list(tolower)) %>%
@@ -212,10 +211,10 @@ trn_weapon_relevel <- weapon_df %>%
   mutate(gender = relevel(factor(gender), ref = "Male")) %>%
   mutate(race = relevel(factor(race), ref = "Black"))
 
-trn_index <-
+trn_index_lgr <-
   createDataPartition(y = trn_weapon_relevel$weapon, p = 0.60, list = FALSE)
-trn_weapon <- trn_weapon_relevel[trn_index, ]
-tst_weapon <- trn_weapon_relevel[-trn_index, ]
+trn_weapon <- trn_weapon_relevel[trn_index_lgr,]
+tst_weapon <- trn_weapon_relevel[-trn_index_lgr,]
 
 # reference group: armed, male, black
 
@@ -257,7 +256,7 @@ death_manner_data <- cleaned_shooting_df %>%
 death_manner_plot <- ggplot(death_manner_data,
                             aes(x = body_camera, fill = body_camera)) +
   geom_bar(position = "dodge") +
-  facet_grid( ~ manner_of_death) +
+  facet_grid(~ manner_of_death) +
   theme(plot.title = element_text(size = (11),
                                   hjust = 0.5)) +
   ggtitle("Manner of death vs Body Camera") +
@@ -277,16 +276,17 @@ set.seed(1)
 
 knn_data <- cleaned_shooting_df %>%
   na.omit() %>%
-  select(-c("id", "name", "city", "state", "date", "month", "year")) %>%
-  group_by(manner_of_death)
+  select(-c("id", "name", "city", "state", "date", "month", "year"))
 
-trn_index <-
+class(knn_data)
+
+trn_index_knn <-
   createDataPartition(y = knn_data$manner_of_death,
                       p = 0.70,
                       list = FALSE)
 
-train_set <- knn_data[trn_index, ]
-test_set <- knn_data[-trn_index, ]
+train_set <- knn_data[trn_index_knn,]
+test_set <- knn_data[-trn_index_knn,]
 
 set.seed(1)
 
@@ -338,8 +338,6 @@ state_no_cam_shot <- cleaned_shooting_df %>%
   na.omit() %>%
   summarise(No.of.Encounters.Without.Camera = n())
 
-state_no_cam_shot
-
 state_with_cam_shot <- cleaned_shooting_df %>%
   select(manner_of_death, body_camera, state, race) %>%
   filter(body_camera == "true") %>%
@@ -347,7 +345,6 @@ state_with_cam_shot <- cleaned_shooting_df %>%
   na.omit() %>%
   summarise(No.of.Encounters.With.Camera = n())
 
-state_with_cam_shot
 
 # 3.1 Death density when body_camera is not present
 
@@ -416,13 +413,13 @@ random_forest_data <- cleaned_shooting_df %>%
   na.omit()
 
 set.seed(1)
-trn_index <-
+train_index_rf <-
   createDataPartition(y = random_forest_data$body_camera,
                       p = 0.70,
                       list = FALSE)
 
-train_set_rf <- random_forest_data[trn_index, ]
-test_set_rf <- random_forest_data[-trn_index, ]
+train_set_rf <- random_forest_data[train_index_rf,]
+test_set_rf <- random_forest_data[-train_index_rf,]
 
 table(train_set_rf$body_camera)
 nmin <- sum(train_set_rf$body_camera == "true")
