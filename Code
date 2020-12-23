@@ -88,79 +88,85 @@ cleaned_shooting_df <- shooting_df %>%
     list(convert_factor)
   )
 
-# *********************************************************
+# ***************Plotting******************************************
 
 # Research question 1
 
-# 1.1 Death in the US per state; california and texas
-ggplot(cleaned_shooting_df, aes(x = state)) +
-  geom_bar(fill = "blue") + coord_flip()
+# 1.1 Deaths in the US per state
+shootings_per_state <- ggplot(cleaned_shooting_df, aes(x = state)) +
+  geom_bar(fill = "black") + ggtitle("Number of deaths per State") +
+  coord_flip() +
+  scale_x_discrete("State") +
+  scale_y_continuous("Number of Deaths") +
+  theme(plot.title = element_text(hjust = 0.5))
 
-# 1.2 Deaths per gender, 95% male and 5% female victims
+shootings_per_state
+
+# 1.2 Deaths per gender, 95% male and 5% female victims > change colors
 shooting_per_gender <- cleaned_shooting_df %>%
   drop_na %>%
-  ggplot(aes(x = gender)) +
-  geom_bar()
-
+  ggplot(aes(x = gender, fill = gender)) +
+  geom_bar() +
+  ggtitle("Number of deaths per gender") +
+  scale_x_discrete(name = "Gender") +
+  scale_y_continuous(name = "Number of Deaths") +
+  scale_fill_manual(name = "Gender", values = c("Female" = "black", 
+                                                "Male" = "yellow2")) +
+  theme(axis.title.y = element_text(margin = margin(0, 10, 0, 0)),
+        plot.title = element_text(hjust = 0.5))
+  
 shooting_per_gender
 
-# 1.3 Deaths per race; mostly whites
-cleaned_shooting_df %>%
-  drop_na %>%
-  ggplot(aes(x = year, fill = race)) +
-  geom_bar()
-
-# 1.3.1 Deaths per race over the years
-death_per_race <- cleaned_shooting_df %>%
+# 1.3 Deaths per race from 2015-2020
+shootings_per_year <- cleaned_shooting_df %>%
   group_by(year) %>%
   count(race) %>%
-  drop_na()
+  drop_na() %>%
+  ggplot(aes(x = year, y = n, group = race)) +
+  geom_line(aes(color = race)) +
+  ggtitle("Number of deaths per race per year") +
+  scale_colour_brewer("Race") +
+  scale_x_discrete(name = "Year") +
+  scale_y_continuous(name = "Number of Deaths") +
+  theme(axis.title.y = element_text(margin = margin(0, 10, 0, 0)),
+        plot.title = element_text(hjust = 0.5))
 
-ggplot(death_per_race, aes(x = year, y = n, group = race)) +
-  geom_line(aes(color = race))
+shootings_per_year
 
 ## white people: decrease after 2015, especially after 2018, 2019 stable.
 ## black people: decrease after 2015 but a peak in 2019 and after again decrease
 ## hispanics: decrease after 2015, peak in 2017, after that decrease
 ## Native American, and others steady over the years
 
-# 1.4 Number of people being shot without being armed
+# 1.4 Number of people being shot and having a weapon
 
 perc_shootings_armed <- cleaned_shooting_df %>%
-  na.omit() %>%
-  mutate(weapon = ifelse(
-    armed == "unarmed",
-    "unarmed",
-    ifelse(
-      armed == "undetermined",
-      "unknown",
-      ifelse(armed == "unknown weapon", "unknown",
-             "armed")
-    )
-  )) %>%
+  mutate(weapon = ifelse(armed == "unarmed", "Unarmed", 
+                         ifelse(armed == "undetermined", "Unknown", 
+                                ifelse(armed == "unknwon weapon", "Unknown", 
+                                       "Armed")))) %>%
   group_by(manner_of_death) %>%
   count(weapon) %>%
-  mutate(perc = n / sum(n))
+  mutate(perc = n / sum(n)) %>%
+  na.omit()
 
-perc_shootings_armed
-
-perc_shootings_armed %>%
+shootings_weapon <- perc_shootings_armed %>%
   drop_na() %>%
-  ggplot(aes(
-    x = manner_of_death,
-    y = perc,
-    fill = weapon,
-    label = scales::percent(perc)
-  )) +
+  ggplot(aes(x = manner_of_death, y = perc, fill = weapon,
+             label = scales::percent(perc))) +
   geom_bar(stat = "identity", position = "dodge") +
-  geom_text(position = position_dodge(width = .9),
-            # move to center of bars
-            vjust = -0.5,
-            # nudge above top of bar
-            size = 3) +
-  scale_y_continuous(labels = scales::percent)
+  geom_text(position = position_dodge(width = .9), vjust = -0.5, size = 3) +
+  ggtitle("Percentage of deaths and weapon possession") +
+  scale_x_discrete(name = "Manner of Death", 
+                   labels = c("Shot", "Shot and Tasered")) +
+  scale_y_continuous("Percentage of Deaths", labels = scales::percent) +
+  theme(axis.title.y = element_text(margin = margin(0, 10, 0, 0)),
+        plot.title = element_text(hjust = 0.5)) +
+  scale_fill_brewer("Weapon")
+  
+shootings_weapon
 
-## majority of the people being shot, or shot and tasered were armed (89.3% and 81.7%)
+## majority of the people being shot, or shot and tasered were armed (87.3% and 81.6%)
 
 # *********************************************************
 
