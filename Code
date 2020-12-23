@@ -398,7 +398,11 @@ state_with_cam_plot_data
 # body_camera vs armed
 
 random_forest_data <- cleaned_shooting_df %>%
-  select(body_camera, armed) %>%
+  select(body_camera,
+         armed,
+         threat_level,
+         flee,
+         signs_of_mental_illness) %>%
   mutate(armed = ifelse(
     armed == "unarmed",
     "unarmed",
