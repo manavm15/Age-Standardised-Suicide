@@ -1,25 +1,30 @@
-## Goutham Indiran, u195004
-## Majda Kasmi, u407044
-## Manav Mishra, u558101
-## Sabrina de Graaf, u379304
-## Sadjia Safdari, u265740
 
+# ******************************************************************************
 
+# GROUP PROJECT OF PROGRAMMING WITH R
 
-## Load packages ---------------------------------------------------------------
+# FATAL POLICE SHOOTING IN THE U.S. FROM 2015 - 2020
+
+# ******************************************************************************
+# (GROUP 10)
+
+# Name              Anr
+# Goutham Indiran, u195004
+# Majda Kasmi, u407044
+# Manav Mishra, u558101
+# Sabrina de Graaf, u379304
+# Sadjia Safdari, u265740
+
+# ******************************************************************************
+
+# Load packages*****************************************************************
+
 library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(caret)
-#install usmap first
-library(usmap)
-# your own package
 
-## *************************Load data*************************************
-
-# in your submission (as a .zip document), there should be an "input" directory
-# that holds your datafiles as .txt or .csv.
-# Provide relative paths upon submission in your script that allow direct loading
+# *************************Load data********************************************
 
 shooting_df <- read.csv(
   "input/fatal-police-shootings-data.csv",
@@ -27,16 +32,18 @@ shooting_df <- read.csv(
   na.strings = c("", "NA")
 )
 
-
-#*****************write all functions here******************************
+# *****************write all functions here*************************************
 
 convert_factor <- function(column_name) {
   column_name <- as.factor(column_name)
 }
 
-# **************explore and analyse data here ***************************
+# **************explore and analyze data here***********************************
 
-#Cleaning dataset
+# METHODOLOGY
+
+# DATA PREPROCESSING
+
 cleaned_shooting_df <- shooting_df %>%
   select(-c(latitude, longitude, is_geocoding_exact)) %>%
   mutate_all(. , list( ~ na_if(., ""))) %>%
@@ -88,11 +95,12 @@ cleaned_shooting_df <- shooting_df %>%
     list(convert_factor)
   )
 
-# ***************Plotting******************************************
+# ***************RESULTS********************************************************
 
-# Research question 1
+# MODEL 1 DATA VISUALIZATION
 
 # 1.1 Deaths in the US per state
+
 shootings_per_state <- ggplot(cleaned_shooting_df, aes(x = state)) +
   geom_bar(fill = "black") + ggtitle("Number of deaths per State") +
   coord_flip() +
@@ -103,6 +111,7 @@ shootings_per_state <- ggplot(cleaned_shooting_df, aes(x = state)) +
 shootings_per_state
 
 # 1.2 Deaths per gender, 95% male and 5% female victims > change colors
+
 shooting_per_gender <- cleaned_shooting_df %>%
   drop_na %>%
   ggplot(aes(x = gender, fill = gender)) +
@@ -110,14 +119,16 @@ shooting_per_gender <- cleaned_shooting_df %>%
   ggtitle("Number of deaths per gender") +
   scale_x_discrete(name = "Gender") +
   scale_y_continuous(name = "Number of Deaths") +
-  scale_fill_manual(name = "Gender", values = c("Female" = "black", 
-                                                "Male" = "yellow2")) +
+  scale_fill_manual(name = "Gender",
+                    values = c("Female" = "black",
+                               "Male" = "yellow2")) +
   theme(axis.title.y = element_text(margin = margin(0, 10, 0, 0)),
         plot.title = element_text(hjust = 0.5))
-  
+
 shooting_per_gender
 
 # 1.3 Deaths per race from 2015-2020
+
 shootings_per_year <- cleaned_shooting_df %>%
   group_by(year) %>%
   count(race) %>%
@@ -133,44 +144,51 @@ shootings_per_year <- cleaned_shooting_df %>%
 
 shootings_per_year
 
-## white people: decrease after 2015, especially after 2018, 2019 stable.
-## black people: decrease after 2015 but a peak in 2019 and after again decrease
-## hispanics: decrease after 2015, peak in 2017, after that decrease
-## Native American, and others steady over the years
-
 # 1.4 Number of people being shot and having a weapon
 
 perc_shootings_armed <- cleaned_shooting_df %>%
-  mutate(weapon = ifelse(armed == "unarmed", "Unarmed", 
-                         ifelse(armed == "undetermined", "Unknown", 
-                                ifelse(armed == "unknwon weapon", "Unknown", 
-                                       "Armed")))) %>%
+  na.omit() %>%
+  mutate(weapon = ifelse(
+    armed == "unarmed",
+    "Unarmed",
+    ifelse(
+      armed == "undetermined",
+      "Unknown",
+      ifelse(armed == "unknwon weapon", "Unknown",
+             "Armed")
+    )
+  )) %>%
   group_by(manner_of_death) %>%
   count(weapon) %>%
-  mutate(perc = n / sum(n)) %>%
-  na.omit()
+  mutate(perc = n / sum(n))
 
 shootings_weapon <- perc_shootings_armed %>%
   drop_na() %>%
-  ggplot(aes(x = manner_of_death, y = perc, fill = weapon,
-             label = scales::percent(perc))) +
+  ggplot(aes(
+    x = manner_of_death,
+    y = perc,
+    fill = weapon,
+    label = scales::percent(perc)
+  )) +
   geom_bar(stat = "identity", position = "dodge") +
-  geom_text(position = position_dodge(width = .9), vjust = -0.5, size = 3) +
+  geom_text(position = position_dodge(width = .9),
+            vjust = -0.5,
+            size = 3) +
   ggtitle("Percentage of deaths and weapon possession") +
-  scale_x_discrete(name = "Manner of Death", 
+  scale_x_discrete(name = "Manner of Death",
                    labels = c("Shot", "Shot and Tasered")) +
   scale_y_continuous("Percentage of Deaths", labels = scales::percent) +
   theme(axis.title.y = element_text(margin = margin(0, 10, 0, 0)),
         plot.title = element_text(hjust = 0.5)) +
   scale_fill_brewer("Weapon")
-  
+
 shootings_weapon
 
-## majority of the people being shot, or shot and tasered were armed (87.3% and 81.6%)
+# ******************************************************************************
 
-# *********************************************************
+# MODEL 1 LOGISTIC REGRESSION
 
-# Logistic Regression Research q1
+# ***************LG Research q1*************************************************
 
 weapon_df <- cleaned_shooting_df %>%
   drop_na() %>%
@@ -195,14 +213,12 @@ trn_weapon_relevel <- weapon_df %>%
   mutate(race = relevel(factor(race), ref = "Black"))
 
 trn_index <-
-  createDataPartition(y = trn_weapon_relevel$weapon, p = 0.70, list = FALSE)
+  createDataPartition(y = trn_weapon_relevel$weapon, p = 0.60, list = FALSE)
 trn_weapon <- trn_weapon_relevel[trn_index, ]
 tst_weapon <- trn_weapon_relevel[-trn_index, ]
 
-
-# levels(trn_weapon_relevel$weapon)
-
 # reference group: armed, male, black
+
 set.seed(1)
 weapon_lgr <- train(
   weapon ~ race + gender,
@@ -211,7 +227,6 @@ weapon_lgr <- train(
   data = trn_weapon,
   trControl = trainControl(
     method = "repeatedcv",
-    number = 5,
     repeats = 3,
     summaryFunction = prSummary,
     classProbs = TRUE,
@@ -226,24 +241,13 @@ pred_weapon_lgr <- predict(weapon_lgr, tst_weapon)
 
 cnf_mtrx_lgr <-
   confusionMatrix(pred_weapon_lgr, as.factor(tst_weapon$weapon))
-
 cnf_mtrx_lgr
-# being armed, black and a male: -2.1765
-# being a asian male makes you less likely to be armed -0.3487
-# being a hispanic male makes you less likely to be armed -0.2352
-# being a female makes you more likely to be armed than being a male 0.4369???
-# last one is not proportionate since we have 4506 males in dataset and 232 females
 
-# *********************************************************
+# **********************************RESULTS*************************************
 
-#Research Questions 2
-# (i)What is the effect of the presence of body cameras on the manner_of_death?
+# MODEL 2 DATA VISUALIZATION
 
-#Plot code for research question 2 starts
-
-## Upon plotting the barplot and analysing it comes to attention that, number of
-## people shot, shot and tasered (or Number of death) were low  when the body
-## camera was present, as compared to when the body camera was not present
+# 2.1 manner_of_death vs body_camera (facet title name)
 
 death_manner_data <- cleaned_shooting_df %>%
   select(-c("id", "name", "city", "state", "date")) %>%
@@ -257,80 +261,18 @@ death_manner_plot <- ggplot(death_manner_data,
   theme(plot.title = element_text(size = (11),
                                   hjust = 0.5)) +
   ggtitle("Manner of death vs Body Camera") +
-  guides(fill = guide_legend(title = "Body Camera"))
+  scale_fill_manual(name = "Body Camera",
+                    values = c("false" = "black",
+                               "true" = "yellow2")) +
+  scale_x_discrete(name = "Body Camera") +
+  scale_y_continuous(name = "Number of Deaths")
 
 death_manner_plot
 
+# ******************************************************************************
 
-# Research Question 2
-# (ii) Does the death count by camera use differ per state?
+# MODEL 2 K NEAREST NEIGHBORS
 
-state_no_cam_shot <- cleaned_shooting_df %>%
-  select(manner_of_death, body_camera, state, race) %>%
-  filter(body_camera == "false") %>%
-  group_by(state) %>%
-  na.omit() %>%
-  summarise(No.of.Encounters.Without.Camera = n())
-
-state_with_cam_shot <- cleaned_shooting_df %>%
-  select(manner_of_death, body_camera, state, race) %>%
-  filter(body_camera == "true") %>%
-  group_by(state) %>%
-  na.omit() %>%
-  summarise(No.of.Encounters.With.Camera = n())
-
-#install usmap package to get the map plot of US
-#install.packages("usmap")
-
-#using package usmap for visualizing data in the US map
-
-#plot for shooting with body camera not present
-state_no_cam_plot_data <- plot_usmap(
-  data = state_no_cam_shot,
-  values = "No.of.Encounters.Without.Camera",
-  color = "red" ,
-  labels = TRUE
-) +
-  scale_fill_continuous(low = "light yellow",
-                        high = "red",
-                        name = "Death count") +
-  theme(
-    legend.position = "right",
-    plot.title = element_text(size = (15),
-                              hjust = 0.5),
-    legend.title = element_text(size = (12))
-  ) +
-  ggtitle("Death Density when Body Camera is not present")
-
-state_no_cam_plot_data
-
-
-#plot for shooting with body camera present
-state_with_cam_plot_data <- plot_usmap(
-  data = state_with_cam_shot,
-  values = "No.of.Encounters.With.Camera",
-  color = "red" ,
-  labels = TRUE
-) +
-  scale_fill_continuous(low = "light yellow",
-                        high = "brown",
-                        name = "Death count") +
-  theme(
-    legend.position = "right",
-    plot.title = element_text(size = (15),
-                              hjust = 0.5),
-    legend.title = element_text(size = (12))
-  ) +
-  ggtitle("Death Density when Body Camera is present")
-
-state_with_cam_plot_data
-
-#Plotting for research question 2 ends
-
-#Code for building model for research question 2 starts
-# (i)What is the effect of the presence of body cameras on the manner_of_death?
-
-# KNN Model
 set.seed(1)
 
 knn_data <- cleaned_shooting_df %>%
@@ -369,12 +311,92 @@ cnf_mtrx_knn <-
   confusionMatrix(pred_death_manner_knn, as.factor(test_set$manner_of_death))
 cnf_mtrx_knn
 
-# Code for research question 2 ends
+# ***************RESULTS********************************************************
 
+# MODEL 3 DATA VISUALIZATION
 
-#Random forest
+# Installing packages
 
-#Bodycamera vs Armed
+install.packages("DMwR")
+install.packages("usmap")
+install.packages("randomForest")
+install.packages("grid")
+
+# Loading packages
+
+library(DMwR)
+library(usmap)
+library(randomForest)
+library(grid)
+
+# VISUALIZATION OF THE DATA FOR PREPROCESSING
+
+state_no_cam_shot <- cleaned_shooting_df %>%
+  select(manner_of_death, body_camera, state, race) %>%
+  filter(body_camera == "false") %>%
+  group_by(state) %>%
+  na.omit() %>%
+  summarise(No.of.Encounters.Without.Camera = n())
+
+state_no_cam_shot
+
+state_with_cam_shot <- cleaned_shooting_df %>%
+  select(manner_of_death, body_camera, state, race) %>%
+  filter(body_camera == "true") %>%
+  group_by(state) %>%
+  na.omit() %>%
+  summarise(No.of.Encounters.With.Camera = n())
+
+state_with_cam_shot
+
+# 3.1 Death density when body_camera is not present
+
+state_no_cam_plot_data <- plot_usmap(
+  data = state_no_cam_shot,
+  values = "No.of.Encounters.Without.Camera",
+  color = "red" ,
+  labels = TRUE
+) +
+  scale_fill_continuous(low = "light yellow",
+                        high = "red",
+                        name = "Death count") +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(size = (15),
+                              hjust = 0.5),
+    legend.title = element_text(size = (12))
+  ) +
+  ggtitle("Death density when body camera is not present")
+
+state_no_cam_plot_data
+
+# 3.2 Death density when body_camera is present
+
+state_with_cam_plot_data <- plot_usmap(
+  data = state_with_cam_shot,
+  values = "No.of.Encounters.With.Camera",
+  color = "red" ,
+  labels = TRUE
+) +
+  scale_fill_continuous(low = "light yellow",
+                        high = "brown",
+                        name = "Death count") +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(size = (15),
+                              hjust = 0.5),
+    legend.title = element_text(size = (12))
+  ) +
+  ggtitle("Death density when body camera is present")
+
+state_with_cam_plot_data
+
+# ******************************************************************************
+
+# MODEL 3 RANDOM FOREST
+
+# body_camera vs armed
+
 random_forest_data <- cleaned_shooting_df %>%
   select(body_camera, armed) %>%
   mutate(armed = ifelse(
@@ -400,7 +422,7 @@ test_set_rf <- random_forest_data[-trn_index, ]
 
 table(train_set_rf$body_camera)
 nmin <- sum(train_set_rf$body_camera == "true")
-nmin
+
 set.seed(1)
 
 ctrl <- trainControl(
@@ -421,8 +443,14 @@ death_manner_rf_model <- train(
   trControl = ctrl,
   sampsize = rep(nmin, 2)
 )
+
 death_manner_rf_model
+
 pred_cam_rf <- predict(death_manner_rf_model, test_set_rf)
+
 cnf_mtrx_rf <-
   confusionMatrix(pred_cam_rf, as.factor(test_set_rf$body_camera))
+
 cnf_mtrx_rf
+
+# ******************************************************************************
