@@ -136,7 +136,7 @@ shootings_per_year <- cleaned_shooting_df %>%
   ggplot(aes(x = year, y = n, group = race)) +
   geom_line(aes(color = race)) +
   ggtitle("Number of deaths per race per year") +
-  scale_colour_brewer("Race") +
+  scale_color_brewer(palette = "Set2") +
   scale_x_discrete(name = "Year") +
   scale_y_continuous(name = "Number of Deaths") +
   theme(axis.title.y = element_text(margin = margin(0, 10, 0, 0)),
